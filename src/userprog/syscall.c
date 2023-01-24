@@ -17,12 +17,10 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
   printf ("system call!\n");
   void* stack = f->esp;
-  unsigned int syscall_nr = *stack;
+  unsigned int syscall_nr = *(int*)stack;
   switch (syscall_nr) {
     /* Project 2 */
     case SYS_HALT: 
-      break;
-    case SYS_HALT:       
       break;
     case SYS_EXIT:                  
       break;
@@ -65,7 +63,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         break;
       case SYS_ISDIR:               
         break;
-      case SYS_INUMBER             
+      case SYS_INUMBER:
         break;
   }
 
