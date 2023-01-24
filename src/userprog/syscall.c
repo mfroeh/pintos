@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/init.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -12,7 +13,15 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-  static void
+#define STACK_GET(STACK, ARG, TYPE) (*(TYPE*)(STACK+4*ARG))
+#define STACK_VAR(NAME, TYPE, STACK, ARG) TYPE NAME = (*(TYPE*)(STACK+4*ARG))
+
+/* Syscall implementations */
+void halt(void) {
+    power_off();
+}
+
+static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   printf ("system call!\n");
@@ -21,6 +30,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   switch (syscall_nr) {
     /* Project 2 */
     case SYS_HALT: 
+      halt();
       break;
     case SYS_EXIT:                  
       break;
@@ -29,8 +39,11 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WAIT:                
       break;
       break;
-    case SYS_CREATE:             
+    case SYS_CREATE: {
+      STACK_VAR(file, char*, stack, 1);
+      STACK_VAR(initial_size, unsigned, stack, 2);
       break;
+                     }
     case SYS_REMOVE:            
       break;
     case SYS_OPEN:             
