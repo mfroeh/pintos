@@ -11,12 +11,12 @@
 
 #define STACK_GET(STACK, ARG, TYPE) (*(TYPE*)(STACK+4*ARG))
 #define STACK_VAR(NAME, TYPE, STACK, ARG) TYPE NAME = (*(TYPE*)(STACK+4*ARG))
-#define UNSIGNED_MAX 0xFFFFFFFF
+#define INT_MAX 0x7FFFFFFF
 
 static void syscall_handler (struct intr_frame *);
 
 // The fd to give out
-unsigned next_fd = 2;
+int next_fd = 2;
 
 // List of the open file descriptors
 struct list open_fds;
@@ -24,14 +24,16 @@ unsigned open_fds_count = 0;
 
 /* File descriptor list */
 struct fd_struct {
-    unsigned fd;
+    int fd;
+    struct file* file_;
     struct list_elem list_elem;
 };
 typedef struct fd_struct fd_struct;
 
-fd_struct* new_fd_struct(unsigned fd) {
+fd_struct* new_fd_struct(int fd, struct file* file_) {
     fd_struct* new = malloc(sizeof(fd_struct));
     new->fd = fd;
+    new->file_ = file_;
     return new;
 }
 
@@ -54,14 +56,25 @@ int open(char const* name) {
         return -1; 
     }
 
-    if (next_fd != UNSIGNED_MAX) {
-        fd_struct *new_fd = new_fd_struct(++next_fd);
+    if (next_fd != INT_MAX) {
+        fd_struct *new_fd = new_fd_struct(++next_fd, file_);
         list_push_back(&open_fds, &(new_fd->list_elem));
         open_fds_count++;
         return next_fd;
     } else {
         // TODO: Find new file descriptor
         return -1;
+    }
+}
+
+void close(int fd) {
+    struct list_elem* it;
+    for (it = list_begin(&open_fds); it != list_end(&open_fds); it = list_next(it)) {
+        fd_struct *fd_str = list_entry(it, fd_struct, list_elem);
+        if (fd_str->fd == fd) {
+            list_remove(it);
+            return;
+        }
     }
 }
 
@@ -97,38 +110,44 @@ static void syscall_handler (struct intr_frame *f UNUSED)
                          }
         case SYS_REMOVE:            
                          break;
-        case SYS_OPEN:             
-                         break;
+        case SYS_OPEN: {
+                           STACK_VAR(file, char const*, stack, 1);
+                           f->eax = open(file);
+                           break;
+                       }
         case SYS_FILESIZE:        
-                         break;
+                       break;
         case SYS_READ:           
-                         break;
+                       break;
         case SYS_WRITE:         
-                         break;
+                       break;
         case SYS_SEEK:         
-                         break;
+                       break;
         case SYS_TELL:        
-                         break;
-        case SYS_CLOSE:      
-                         break;
+                       break;
+        case SYS_CLOSE:       {
+                                  STACK_VAR(fd, int, stack, 1);
+                                  close(fd);
+                                  break;
+                              }
 
-                         /* Project 3 and optionally project 4. */
+                              /* Project 3 and optionally project 4. */
         case SYS_MMAP:                  
-                         break;
+                              break;
         case SYS_MUNMAP:                 
-                         break;
+                              break;
 
-                         /* Project 4 only. */
+                              /* Project 4 only. */
         case SYS_CHDIR:                  
-                         break;
+                              break;
         case SYS_MKDIR:                 
-                         break;
+                              break;
         case SYS_READDIR:              
-                         break;
+                              break;
         case SYS_ISDIR:               
-                         break;
+                              break;
         case SYS_INUMBER:
-                         break;
+                              break;
     }
 
     thread_exit ();
