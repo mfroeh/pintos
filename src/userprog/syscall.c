@@ -38,6 +38,7 @@ fd_struct* new_fd_struct(int fd, struct file* file_) {
 }
 
 void destroy_fd_struct(fd_struct* destroy) {
+    file_close(destroy->file);
     free(destroy);
 }
 
@@ -73,6 +74,7 @@ void close(int fd) {
         fd_struct *fd_str = list_entry(it, fd_struct, list_elem);
         if (fd_str->fd == fd) {
             list_remove(it);
+            destroy_fd_struct(fd_str);
             return;
         }
     }
