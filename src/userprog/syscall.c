@@ -38,7 +38,7 @@ fd_struct* new_fd_struct(int fd, struct file* file_) {
 }
 
 void destroy_fd_struct(fd_struct* destroy) {
-    file_close(destroy->file);
+    file_close(destroy->file_);
     free(destroy);
 }
 
