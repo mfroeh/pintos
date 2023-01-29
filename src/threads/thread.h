@@ -106,6 +106,7 @@ struct thread
 
 #ifdef USERPROG
     struct list fds;
+    unsigned fd_count;
 #endif
   };
 

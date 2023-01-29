@@ -441,6 +441,7 @@ init_thread (struct thread *t, const char *name, int priority)
   struct list fds;
   list_init(&fds);
   t->fds = fds;
+  t->fd_count = 0;
 #endif
 }
 

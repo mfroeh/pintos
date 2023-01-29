@@ -18,10 +18,6 @@ static void syscall_handler (struct intr_frame *);
 // The fd to give out
 int next_fd = 2;
 
-// List of the open file descriptors
-struct list open_fds;
-unsigned open_fds_count = 0;
-
 /* File descriptor list */
 struct fd_struct {
     int fd;
@@ -51,26 +47,29 @@ bool create(char const* file, unsigned initial_size) {
     return filesys_create(file, initial_size);
 }
 
-int open(char const* name) {
+int open(char const* name, struct thread* cur_thread) {
     struct file* file_ = filesys_open(name);
-    if (file_ == NULL || open_fds_count == 0) {
+    if (file_ == NULL || cur_thread->fd_count == 128) {
         return -1; 
     }
 
     if (next_fd != INT_MAX) {
-        fd_struct *new_fd = new_fd_struct(++next_fd, file_);
-        list_push_back(&open_fds, &(new_fd->list_elem));
-        open_fds_count++;
-        return next_fd;
+        int fd = next_fd++;
+        fd_struct *new_fd = new_fd_struct(fd, file_);
+        list_push_back(&cur_thread->fds, &new_fd->list_elem);
+        cur_thread->fd_count++;
+        return fd;
     } else {
         // TODO: Find new file descriptor
         return -1;
     }
 }
 
-void close(int fd) {
+void close(int fd, struct thread* cur_thread) {
+    // TODO: Should we handle fd is 0,1?
+    
     struct list_elem* it;
-    for (it = list_begin(&open_fds); it != list_end(&open_fds); it = list_next(it)) {
+    for (it = list_begin(&cur_thread->fds); it != list_end(&cur_thread->fds); it = list_next(it)) {
         fd_struct *fd_str = list_entry(it, fd_struct, list_elem);
         if (fd_str->fd == fd) {
             list_remove(it);
@@ -78,14 +77,14 @@ void close(int fd) {
             return;
         }
     }
+
+    // TODO: if we arrived here, no fd with that ID was open
 }
 
 /* Syscall handler */
 void syscall_init (void) 
 {
     intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-    // Create the list of fds for single process
-    list_init(&open_fds);
 }
 
 static void syscall_handler (struct intr_frame *f UNUSED) 
@@ -93,6 +92,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     printf ("system call!\n");
     void* stack = f->esp;
     unsigned int syscall_nr = *(int*)stack;
+    struct thread* cur_thread = thread_current();
     switch (syscall_nr) {
         /* Project 2 */
         case SYS_HALT: 
@@ -114,7 +114,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
                          break;
         case SYS_OPEN: {
                            STACK_VAR(file, char const*, stack, 1);
-                           f->eax = open(file);
+                           f->eax = open(file, cur_thread);
                            break;
                        }
         case SYS_FILESIZE:        
@@ -129,7 +129,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
                        break;
         case SYS_CLOSE:       {
                                   STACK_VAR(fd, int, stack, 1);
-                                  close(fd);
+                                  close(fd, cur_thread);
                                   break;
                               }
 
