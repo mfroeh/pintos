@@ -5,8 +5,7 @@
 #include "threads/thread.h"
 #include "threads/init.h"
 #include "filesys/filesys.h"
-#include "lib/kernel/hash.h"
-#include "lib/kernel/list.h"
+#include "filesys/file.h"
 #include "threads/malloc.h"
 
 #define STACK_GET(STACK, ARG, TYPE) (*(TYPE*)(STACK+4*ARG))
@@ -17,14 +16,6 @@ static void syscall_handler (struct intr_frame *);
 
 // The fd to give out
 int next_fd = 2;
-
-/* File descriptor list */
-struct fd_struct {
-    int fd;
-    struct file* file_;
-    struct list_elem list_elem;
-};
-typedef struct fd_struct fd_struct;
 
 fd_struct* new_fd_struct(int fd, struct file* file_) {
     fd_struct* new = malloc(sizeof(fd_struct));
@@ -67,7 +58,7 @@ int open(char const* name, struct thread* cur_thread) {
 
 void close(int fd, struct thread* cur_thread) {
     // TODO: Should we handle fd is 0,1?
-    
+
     struct list_elem* it;
     for (it = list_begin(&cur_thread->fds); it != list_end(&cur_thread->fds); it = list_next(it)) {
         fd_struct *fd_str = list_entry(it, fd_struct, list_elem);
@@ -79,6 +70,11 @@ void close(int fd, struct thread* cur_thread) {
     }
 
     // TODO: if we arrived here, no fd with that ID was open
+}
+
+int exit(int status) {
+    thread_exit();
+    return status;
 }
 
 /* Syscall handler */
@@ -98,12 +94,15 @@ static void syscall_handler (struct intr_frame *f UNUSED)
         case SYS_HALT: 
             halt();
             break;
-        case SYS_EXIT:                  
-            break;
+        case SYS_EXIT:{
+                          STACK_VAR(status, int, stack, 1);
+                          f->eax = exit(status);
+                          break;
+                      }
         case SYS_EXEC:                 
-            break;
+                      break;
         case SYS_WAIT:                
-            break;
+                      break;
         case SYS_CREATE: {
                              STACK_VAR(file, char const*, stack, 1);
                              STACK_VAR(initial_size, unsigned, stack, 2);
@@ -151,8 +150,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
         case SYS_INUMBER:
                               break;
     }
-
-    thread_exit ();
+    // thread_exit ();
 }
 
 //// Process table 

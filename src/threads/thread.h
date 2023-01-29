@@ -99,15 +99,13 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    // Added by us
+    struct list fds;
+    unsigned fd_count;
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-
-#ifdef USERPROG
-    struct list fds;
-    unsigned fd_count;
-#endif
   };
 
 /* If false (default), use round-robin scheduler.
