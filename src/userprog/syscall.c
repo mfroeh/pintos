@@ -7,6 +7,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/malloc.h"
+#include "devices/input.h"
 
 #define STACK_GET(STACK, ARG, TYPE) (*(TYPE*)(STACK+4*ARG))
 #define STACK_VAR(NAME, TYPE, STACK, ARG) TYPE NAME = (*(TYPE*)(STACK+4*ARG))
@@ -56,6 +57,24 @@ int open(char const* name, struct thread* cur_thread) {
     }
 }
 
+int read(int fd, void *buffer, unsigned size, struct thread* cur_thread) {
+    if (fd == 0) {
+        for (unsigned i = 0; i < size; ++i) {
+            *(char*)(buffer+i) = input_getc();
+        }
+        return size;
+    }
+
+    // Else if fd is open
+}
+
+int write(int fd, void const* buffer, unsigned size, struct thread* cur_thread) {
+    if (fd == 1) {
+        char const* str = (char*)buffer;
+        printf(str);
+    }
+}
+
 void close(int fd, struct thread* cur_thread) {
     // TODO: Should we handle fd is 0,1?
 
@@ -85,24 +104,26 @@ void syscall_init (void)
 
 static void syscall_handler (struct intr_frame *f UNUSED) 
 {
-    printf ("system call!\n");
     void* stack = f->esp;
     unsigned int syscall_nr = *(int*)stack;
     struct thread* cur_thread = thread_current();
+
+    printf("system call %d!\n", syscall_nr);
     switch (syscall_nr) {
         /* Project 2 */
-        case SYS_HALT: 
-            halt();
-            break;
-        case SYS_EXIT:{
-                          STACK_VAR(status, int, stack, 1);
-                          f->eax = exit(status);
-                          break;
-                      }
+        case SYS_HALT: {
+                           halt();
+                           break;
+                       }
+        case SYS_EXIT: {
+                           STACK_VAR(status, int, stack, 1);
+                           f->eax = exit(status);
+                           break;
+                       }
         case SYS_EXEC:                 
-                      break;
+                       break;
         case SYS_WAIT:                
-                      break;
+                       break;
         case SYS_CREATE: {
                              STACK_VAR(file, char const*, stack, 1);
                              STACK_VAR(initial_size, unsigned, stack, 2);
@@ -118,14 +139,24 @@ static void syscall_handler (struct intr_frame *f UNUSED)
                        }
         case SYS_FILESIZE:        
                        break;
-        case SYS_READ:           
-                       break;
-        case SYS_WRITE:         
-                       break;
+        case SYS_READ:       {    
+                                 STACK_VAR(fd, int, stack, 1);
+                                 STACK_VAR(buffer, void*, stack, 2);
+                                 STACK_VAR(size, unsigned, stack, 3);
+                                 f->eax = read(fd, buffer, size, cur_thread);
+                                 break;
+                             }
+        case SYS_WRITE: {        
+                            STACK_VAR(fd, int, stack, 1);
+                            STACK_VAR(buffer, void const*, stack, 2);
+                            STACK_VAR(size, unsigned, stack, 3);
+                            f->eax = write(fd, buffer, size, cur_thread);
+                            break;
+                        }
         case SYS_SEEK:         
-                       break;
+                        break;
         case SYS_TELL:        
-                       break;
+                        break;
         case SYS_CLOSE:       {
                                   STACK_VAR(fd, int, stack, 1);
                                   close(fd, cur_thread);
