@@ -5,6 +5,10 @@
 #include <list.h>
 #include <stdint.h>
 
+#ifdef USERPROG
+#include "lib/kernel/list.h"
+#endif
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -99,6 +103,10 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+#ifdef USERPROG
+    struct list fds;
+#endif
   };
 
 /* If false (default), use round-robin scheduler.
