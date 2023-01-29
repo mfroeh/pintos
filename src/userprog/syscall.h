@@ -14,5 +14,6 @@ typedef struct fd_struct fd_struct;
 
 fd_struct* new_fd_struct(int fd, struct file* file_);
 void destroy_fd_struct(fd_struct* destroy);
+fd_struct* find_fd_struct(struct list * fds, int fd);
 
 #endif /* userprog/syscall.h */

@@ -8,6 +8,7 @@
 #include "filesys/file.h"
 #include "threads/malloc.h"
 #include "devices/input.h"
+#include "lib/kernel/list.h"
 
 #define STACK_GET(STACK, ARG, TYPE) (*(TYPE*)(STACK+4*ARG))
 #define STACK_VAR(NAME, TYPE, STACK, ARG) TYPE NAME = (*(TYPE*)(STACK+4*ARG))
@@ -30,6 +31,20 @@ void destroy_fd_struct(fd_struct* destroy) {
     free(destroy);
 }
 
+fd_struct* find_fd_struct(struct list* fds, int fd) {
+  struct list_elem * elem;
+  for (elem = list_begin(fds); elem != list_end(fds); elem = list_next(elem)) {
+    fd_struct * elem_fd = list_entry(elem, fd_struct, list_elem);
+    if (elem_fd->fd == fd) {
+      return elem_fd;
+    }
+  }
+
+  return NULL;
+}
+
+
+
 /* Syscall implementations */
 void halt(void) {
     power_off();
@@ -42,7 +57,7 @@ bool create(char const* file, unsigned initial_size) {
 int open(char const* name, struct thread* cur_thread) {
     struct file* file_ = filesys_open(name);
     if (file_ == NULL || cur_thread->fd_count == 128) {
-        return -1; 
+        return -1;
     }
 
     if (next_fd != INT_MAX) {
@@ -66,13 +81,26 @@ int read(int fd, void *buffer, unsigned size, struct thread* cur_thread) {
     }
 
     // Else if fd is open
+    if (fd > 1) {
+      fd_struct* elem_fd = find_fd_struct(&cur_thread->fds, fd);
+      return elem_fd == NULL? -1 : file_read(elem_fd->file_, buffer, size);
+    }
+
+    return -1;
 }
 
-int write(int fd, void const* buffer, unsigned size, struct thread* cur_thread) {
+int write(int fd, void const* buffer, unsigned size, struct thread* cur_thread){
     if (fd == 1) {
-        char const* str = (char*)buffer;
-        printf(str);
+      putbuf(buffer, size);
+      return size;
     }
+
+    if (fd > 1) {
+      fd_struct* elem_fd = find_fd_struct(&cur_thread->fds, fd);
+      return elem_fd == NULL? -1 : file_write(elem_fd->file_, buffer, size);
+    }
+
+    return -1;
 }
 
 void close(int fd, struct thread* cur_thread) {
@@ -97,12 +125,12 @@ int exit(int status) {
 }
 
 /* Syscall handler */
-void syscall_init (void) 
+void syscall_init (void)
 {
     intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-static void syscall_handler (struct intr_frame *f UNUSED) 
+static void syscall_handler (struct intr_frame *f UNUSED)
 {
     void* stack = f->esp;
     unsigned int syscall_nr = *(int*)stack;
@@ -120,9 +148,9 @@ static void syscall_handler (struct intr_frame *f UNUSED)
                            f->eax = exit(status);
                            break;
                        }
-        case SYS_EXEC:                 
+        case SYS_EXEC:
                        break;
-        case SYS_WAIT:                
+        case SYS_WAIT:
                        break;
         case SYS_CREATE: {
                              STACK_VAR(file, char const*, stack, 1);
@@ -130,32 +158,32 @@ static void syscall_handler (struct intr_frame *f UNUSED)
                              f->eax = create(file, initial_size);
                              break;
                          }
-        case SYS_REMOVE:            
+        case SYS_REMOVE:
                          break;
         case SYS_OPEN: {
                            STACK_VAR(file, char const*, stack, 1);
                            f->eax = open(file, cur_thread);
                            break;
                        }
-        case SYS_FILESIZE:        
+        case SYS_FILESIZE:
                        break;
-        case SYS_READ:       {    
+        case SYS_READ:       {
                                  STACK_VAR(fd, int, stack, 1);
                                  STACK_VAR(buffer, void*, stack, 2);
                                  STACK_VAR(size, unsigned, stack, 3);
                                  f->eax = read(fd, buffer, size, cur_thread);
                                  break;
                              }
-        case SYS_WRITE: {        
+        case SYS_WRITE: {
                             STACK_VAR(fd, int, stack, 1);
                             STACK_VAR(buffer, void const*, stack, 2);
                             STACK_VAR(size, unsigned, stack, 3);
                             f->eax = write(fd, buffer, size, cur_thread);
                             break;
                         }
-        case SYS_SEEK:         
+        case SYS_SEEK:
                         break;
-        case SYS_TELL:        
+        case SYS_TELL:
                         break;
         case SYS_CLOSE:       {
                                   STACK_VAR(fd, int, stack, 1);
@@ -164,19 +192,19 @@ static void syscall_handler (struct intr_frame *f UNUSED)
                               }
 
                               /* Project 3 and optionally project 4. */
-        case SYS_MMAP:                  
+        case SYS_MMAP:
                               break;
-        case SYS_MUNMAP:                 
+        case SYS_MUNMAP:
                               break;
 
                               /* Project 4 only. */
-        case SYS_CHDIR:                  
+        case SYS_CHDIR:
                               break;
-        case SYS_MKDIR:                 
+        case SYS_MKDIR:
                               break;
-        case SYS_READDIR:              
+        case SYS_READDIR:
                               break;
-        case SYS_ISDIR:               
+        case SYS_ISDIR:
                               break;
         case SYS_INUMBER:
                               break;
@@ -184,7 +212,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     // thread_exit ();
 }
 
-//// Process table 
+//// Process table
 //static struct hash process_table;
 //
 //struct process_struct {
@@ -213,14 +241,14 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 //  free(destroy);
 //}
 //
-//unsigned pid_hash(const struct hash_elem *p, void* aux UNUSED) { 
-//  process_struct* this = (hash_entry(p, process_struct, hash_elem)); 
+//unsigned pid_hash(const struct hash_elem *p, void* aux UNUSED) {
+//  process_struct* this = (hash_entry(p, process_struct, hash_elem));
 //  return this->pid;
 //}
 //
 //bool pid_less_func(const struct hash_elem *a, const struct hash_elem *b, void* aux UNUSED) {
-//  process_struct* elem_a = (hash_entry(a, process_struct, hash_elem)); 
-//  process_struct* elem_b = (hash_entry(b, process_struct, hash_elem)); 
+//  process_struct* elem_a = (hash_entry(a, process_struct, hash_elem));
+//  process_struct* elem_b = (hash_entry(b, process_struct, hash_elem));
 //  return elem_a->pid < elem_b->pid;
 //}
 //
