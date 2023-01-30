@@ -289,6 +289,7 @@ thread_exit (void)
           destroy_fd_struct(fd);
           cur_thread->fd_count--;
       }
+      free(cur_thread->fds);
   }
 
   // This was here
