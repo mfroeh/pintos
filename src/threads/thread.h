@@ -100,7 +100,7 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     // Added by us
-    struct list fds;
+    struct list *fds;
     unsigned fd_count;
 #endif
 

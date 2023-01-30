@@ -63,8 +63,9 @@ int open(char const* name, struct thread* cur_thread) {
     if (next_fd != INT_MAX) {
         int fd = next_fd++;
         fd_struct *new_fd = new_fd_struct(fd, file_);
-        list_push_back(&cur_thread->fds, &new_fd->list_elem);
+        list_push_back(cur_thread->fds, &new_fd->list_elem);
         cur_thread->fd_count++;
+        fd_struct *test = list_entry(&new_fd->list_elem, struct fd_struct, list_elem);
         return fd;
     } else {
         // TODO: Find new file descriptor
@@ -82,7 +83,7 @@ int read(int fd, void *buffer, unsigned size, struct thread* cur_thread) {
 
     // Else if fd is open
     if (fd > 1) {
-      fd_struct* elem_fd = find_fd_struct(&cur_thread->fds, fd);
+      fd_struct* elem_fd = find_fd_struct(cur_thread->fds, fd);
       return elem_fd == NULL? -1 : file_read(elem_fd->file_, buffer, size);
     }
 
@@ -96,7 +97,7 @@ int write(int fd, void const* buffer, unsigned size, struct thread* cur_thread){
     }
 
     if (fd > 1) {
-      fd_struct* elem_fd = find_fd_struct(&cur_thread->fds, fd);
+      fd_struct* elem_fd = find_fd_struct(cur_thread->fds, fd);
       return elem_fd == NULL? -1 : file_write(elem_fd->file_, buffer, size);
     }
 
@@ -105,16 +106,22 @@ int write(int fd, void const* buffer, unsigned size, struct thread* cur_thread){
 
 void close(int fd, struct thread* cur_thread) {
     // TODO: Should we handle fd is 0,1?
-
-    struct list_elem* it;
-    for (it = list_begin(&cur_thread->fds); it != list_end(&cur_thread->fds); it = list_next(it)) {
-        fd_struct *fd_str = list_entry(it, fd_struct, list_elem);
-        if (fd_str->fd == fd) {
-            list_remove(it);
-            destroy_fd_struct(fd_str);
-            return;
-        }
+    fd_struct* elem_fd = find_fd_struct(cur_thread->fds, fd);
+    if (elem_fd != NULL) {
+        list_remove(&elem_fd->list_elem);
+        destroy_fd_struct(elem_fd);
+    } else {
+        // TODO
     }
+
+   //  struct list_elem* it;
+   //  for (it = list_begin(cur_thread->fds); it != list_end(cur_thread->fds); it = list_next(it)) {
+   //      fd_struct *fd_str = list_entry(it, fd_struct, list_elem);
+   //      if (fd_str == NULL) { halt(); }
+   //      if (fd_str->fd == fd) {
+   //          return;
+   //      }
+   //  }
 
     // TODO: if we arrived here, no fd with that ID was open
 }

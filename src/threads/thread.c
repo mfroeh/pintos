@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -281,11 +282,13 @@ thread_exit (void)
 #ifdef USERPROG
   // Added by us
   struct thread* cur_thread = thread_current();
-  while (!list_empty(&cur_thread->fds)) {
-      struct list_elem *e = list_pop_front(&cur_thread->fds);
-      fd_struct *fd = list_entry(e, fd_struct, list_elem);
-      destroy_fd_struct(fd);
-      cur_thread->fd_count--;
+  if (strcmp(cur_thread->name, "main") != 0) {
+      while (!list_empty(cur_thread->fds)) {
+          struct list_elem *e = list_pop_front(cur_thread->fds);
+          fd_struct *fd = list_entry(e, fd_struct, list_elem);
+          destroy_fd_struct(fd);
+          cur_thread->fd_count--;
+      }
   }
 
   // This was here
@@ -450,10 +453,12 @@ init_thread (struct thread *t, const char *name, int priority)
     t->magic = THREAD_MAGIC;
 
 #ifdef USERPROG
-    struct list fds;
-    list_init(&fds);
-    t->fds = fds;
-    t->fd_count = 0;
+    if (strcmp(name, "main") != 0) {
+        struct list* fds = malloc(sizeof(struct list));
+        list_init(fds);
+        t->fds = fds;
+        t->fd_count = 0;
+    }
 #endif
 }
 
