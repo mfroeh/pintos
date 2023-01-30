@@ -10,7 +10,6 @@
 #include "devices/input.h"
 #include "lib/kernel/list.h"
 
-#define STACK_GET(STACK, ARG, TYPE) (*(TYPE*)(STACK+4*ARG))
 #define STACK_VAR(NAME, TYPE, STACK, ARG) TYPE NAME = (*(TYPE*)(STACK+4*ARG))
 #define INT_MAX 0x7FFFFFFF
 
@@ -32,18 +31,16 @@ void destroy_fd_struct(fd_struct* destroy) {
 }
 
 fd_struct* find_fd_struct(struct list* fds, int fd) {
-  struct list_elem * elem;
-  for (elem = list_begin(fds); elem != list_end(fds); elem = list_next(elem)) {
-    fd_struct * elem_fd = list_entry(elem, fd_struct, list_elem);
-    if (elem_fd->fd == fd) {
-      return elem_fd;
+    struct list_elem * elem;
+    for (elem = list_begin(fds); elem != list_end(fds); elem = list_next(elem)) {
+        fd_struct * elem_fd = list_entry(elem, fd_struct, list_elem);
+        if (elem_fd->fd == fd) {
+            return elem_fd;
+        }
     }
-  }
 
-  return NULL;
+    return NULL;
 }
-
-
 
 /* Syscall implementations */
 void halt(void) {
@@ -63,14 +60,12 @@ int open(char const* name, struct thread* cur_thread) {
     if (next_fd != INT_MAX) {
         int fd = next_fd++;
         fd_struct *new_fd = new_fd_struct(fd, file_);
-        list_push_back(cur_thread->fds, &new_fd->list_elem);
+        list_push_back(&cur_thread->fds, &new_fd->list_elem);
         cur_thread->fd_count++;
-        fd_struct *test = list_entry(&new_fd->list_elem, struct fd_struct, list_elem);
         return fd;
-    } else {
-        // TODO: Find new file descriptor
-        return -1;
     }
+
+    return -1;
 }
 
 int read(int fd, void *buffer, unsigned size, struct thread* cur_thread) {
@@ -83,8 +78,8 @@ int read(int fd, void *buffer, unsigned size, struct thread* cur_thread) {
 
     // Else if fd is open
     if (fd > 1) {
-      fd_struct* elem_fd = find_fd_struct(cur_thread->fds, fd);
-      return elem_fd == NULL? -1 : file_read(elem_fd->file_, buffer, size);
+        fd_struct* elem_fd = find_fd_struct(&cur_thread->fds, fd);
+        return elem_fd == NULL? -1 : file_read(elem_fd->file_, buffer, size);
     }
 
     return -1;
@@ -92,38 +87,25 @@ int read(int fd, void *buffer, unsigned size, struct thread* cur_thread) {
 
 int write(int fd, void const* buffer, unsigned size, struct thread* cur_thread){
     if (fd == 1) {
-      putbuf(buffer, size);
-      return size;
+        putbuf(buffer, size);
+        return size;
     }
 
     if (fd > 1) {
-      fd_struct* elem_fd = find_fd_struct(cur_thread->fds, fd);
-      return elem_fd == NULL? -1 : file_write(elem_fd->file_, buffer, size);
+        fd_struct* elem_fd = find_fd_struct(&cur_thread->fds, fd);
+        return elem_fd == NULL? -1 : file_write(elem_fd->file_, buffer, size);
     }
 
     return -1;
 }
 
 void close(int fd, struct thread* cur_thread) {
-    // TODO: Should we handle fd is 0,1?
-    fd_struct* elem_fd = find_fd_struct(cur_thread->fds, fd);
+    fd_struct* elem_fd = find_fd_struct(&cur_thread->fds, fd);
     if (elem_fd != NULL) {
         list_remove(&elem_fd->list_elem);
+        cur_thread->fd_count--;
         destroy_fd_struct(elem_fd);
-    } else {
-        // TODO
     }
-
-   //  struct list_elem* it;
-   //  for (it = list_begin(cur_thread->fds); it != list_end(cur_thread->fds); it = list_next(it)) {
-   //      fd_struct *fd_str = list_entry(it, fd_struct, list_elem);
-   //      if (fd_str == NULL) { halt(); }
-   //      if (fd_str->fd == fd) {
-   //          return;
-   //      }
-   //  }
-
-    // TODO: if we arrived here, no fd with that ID was open
 }
 
 int exit(int status) {
@@ -216,59 +198,4 @@ static void syscall_handler (struct intr_frame *f UNUSED)
         case SYS_INUMBER:
                               break;
     }
-    // thread_exit ();
 }
-
-//// Process table
-//static struct hash process_table;
-//
-//struct process_struct {
-//  unsigned pid;
-//  struct list* open_fds;
-//  struct hash_elem hash_elem;
-//};
-//typedef struct process_struct process_struct;
-//
-//process_struct* new_process_struct(unsigned pid, struct list* open_fds) {
-//  process_struct* new = malloc(sizeof(process_struct));
-//  new->pid = pid;
-//  new->open_fds = open_fds;
-//  return new;
-//}
-//
-//void destroy_process_struct(process_struct *destroy) {
-//  // Destroy the list
-//  struct list *open_fds = destroy->open_fds;
-//  while (!list_empty(open_fds)) {
-//    struct list_elem *e = list_pop_front(open_fds);
-//    fd_struct *fd = list_entry(e, fd_struct, list_elem);
-//    destroy_fd_struct(fd);
-//  }
-//  free(destroy->open_fds);
-//  free(destroy);
-//}
-//
-//unsigned pid_hash(const struct hash_elem *p, void* aux UNUSED) {
-//  process_struct* this = (hash_entry(p, process_struct, hash_elem));
-//  return this->pid;
-//}
-//
-//bool pid_less_func(const struct hash_elem *a, const struct hash_elem *b, void* aux UNUSED) {
-//  process_struct* elem_a = (hash_entry(a, process_struct, hash_elem));
-//  process_struct* elem_b = (hash_entry(b, process_struct, hash_elem));
-//  return elem_a->pid < elem_b->pid;
-//}
-//
-//struct process_struct* process_lookup(unsigned pid) {
-//  process_struct process;
-//  struct hash_elem *e;
-//  process.pid = pid;
-//  e = hash_find(&process_table, &process.hash_elem);
-//  return e != NULL ? hash_entry(e, process_struct, hash_elem) : NULL;
-//}
-
-// Create the single process struct
-// process_struct* process = new_process_struct(1, p_open_fds);
-
-// hash_init(&process_table, pid_hash, pid_less_func, NULL);
-// hash_insert(&process_table, &(process->hash_elem));
