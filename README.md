@@ -1,17 +1,16 @@
-1. What is the macro corresponding to the syscall number in this case?
+Preparatory question 0:
+(a) What is the idea behind system calls?
 
-The number is 9, which corresponds to SYS_WRITE.
+Managing certain functionality, such as writing to a file, through the kernel instead of the user space.
+This way the user programs don't have to deal with specific hardware, since it is handled by the kernel.
+System calls can be made by including a library provided by the kernel (note that the libary does not make the system calls itself!).
+When a user program makes a system call, it is interrupted and goes into kernel mode.
+The kernel mode checks which system call should be made by examining the stack of the calling thread (user program) and executes the system call.
+It then returns control to the user mode by using an interrupt.
 
-2. What is the second parameter related to and what does it mean in this
-case?
+(b) Why cannot the code of the system calls be available simply as a library
+to user processes? (Tip: you may look at an article in Wikipedia for the answer).
 
-The parameter is 1 which is the file descriptor for STDOUT_FILENO.
+Doing so would surrender control to the user programs, which would cause security risks.
+For example, the kernel would not be able to check if a memory address is valid for the running thread/process.
 
-3. Use GDB to print the string that the pointer in the third parameter refers
-to. Hint: Use the x/s command variant to examine memory and treat it
-as a string. You need to dereference the pointer using an asterisk to access
-the contents of the memory (just like in C). Since GDB doesn’t know the
-data type of the memory location that the pointer points to (it’s a void
-pointer), you also need to cast it to a (char **).
-
-Using x/s on *(char**)(f->esp+8) shows "You got it, use your debugging skills during the labs!\n".
