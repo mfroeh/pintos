@@ -15,7 +15,6 @@ Doing so would surrender control to the user programs, which would cause securit
 For example, the kernel would not be able to check if a memory address is valid for the running thread/process.
 
 Question 1:
-
 (a) How it is possible to distinguish in syscall handler which system call it is?
 
 The library used to perform syscalls pushes the arguments needed by the syscall on the user programs stack before issuing the iterrupt. The first argument will always be the ID of the syscall.
@@ -24,3 +23,7 @@ The library used to perform syscalls pushes the arguments needed by the syscall 
 
 The arguments are stored on the user programs stack, a pointer to which is found in the interrupt frame (void* esp).
 Each argument has a size of one word (32 bit in pintos) which means that argument 1 (always the syscall ID) can be accessed through `int syscall_id = *(int*)(f->esp)`. Argument n can generally be accessed through `type arg_n = *(type*)(f->esp+4*n-1)`.
+
+Question 4:
+
+If user programs were allowed to use the filesystem directly, the kernel would not be able to manage access to the files. For example: User programs could open any and as many files as they want and concurrent access to files could not be managed by the kernel.
