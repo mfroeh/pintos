@@ -7,6 +7,7 @@
 #include "threads/io.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "threads/malloc.h"
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -96,11 +97,18 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+  if (ticks <= 0) return;
+
   int64_t start = timer_ticks ();
 
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  sleeping_thread* t = malloc(sizeof(sleeping_thread));
+  t->sleep_till = start+ticks;
+  t->t = thread_current();
+  list_insert_ordered(&wait_queue, &t->list_elem, wait_queue_cmp, NULL);
+
+  enum intr_level old_level = intr_disable();
+  thread_block();
+  intr_set_level(old_level);
 }
 
 /* Suspends execution for approximately MS milliseconds. */

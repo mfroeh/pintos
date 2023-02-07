@@ -12,6 +12,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "devices/timer.h"
 
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -26,6 +27,9 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+
+// List of waiting (sleeping) threads
+struct list wait_queue;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -96,6 +100,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+  list_init(&wait_queue);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -123,14 +129,32 @@ thread_tick (void)
   struct thread *t = thread_current ();
 
   /* Update statistics. */
-  if (t == idle_thread)
+  if (t == idle_thread) {
     idle_ticks++;
+  }
 #ifdef USERPROG
-  else if (t->pagedir != NULL)
+  else if (t->pagedir != NULL) {
     user_ticks++;
+  }
 #endif
-  else
+  else {
     kernel_ticks++;
+  }
+
+    enum intr_level old_level = intr_disable();
+    int64_t os_ticks = timer_ticks();
+
+    while (!list_empty(&wait_queue)) {
+        struct list_elem* first = list_front(&wait_queue);
+        sleeping_thread *t = list_entry(first, sleeping_thread, list_elem);
+        //printf("tick: %lld; tid: %d; till: %lld\n", os_ticks, t->t->tid, t->sleep_till);
+        if (t->sleep_till > os_ticks) break;
+
+        thread_unblock(t->t);
+        list_pop_front(&wait_queue);
+        // free(t);
+    }
+    intr_set_level(old_level);
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -569,3 +593,10 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+bool wait_queue_cmp(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+   sleeping_thread* t_a = list_entry(a, sleeping_thread, list_elem);
+   sleeping_thread* t_b = list_entry(b, sleeping_thread, list_elem);                   
+   return t_a->sleep_till < t_b->sleep_till;
+}

@@ -2,8 +2,8 @@
 #define THREADS_THREAD_H
 
 #include <debug.h>
-#include <list.h>
 #include <stdint.h>
+#include "lib/kernel/list.h"
 
 #ifdef USERPROG
 #include "lib/kernel/list.h"
@@ -139,5 +139,14 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+extern struct list wait_queue;
+typedef struct {
+   int64_t sleep_till;
+   struct thread* t;
+   struct list_elem list_elem;
+} sleeping_thread;
+
+bool wait_queue_cmp(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 #endif /* threads/thread.h */
