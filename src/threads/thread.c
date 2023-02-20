@@ -307,6 +307,9 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
+  // struct semaphore sema;
+  // sema_init(&sema, 0);
+  // sema_down(&sema);
   // Added by us
   struct thread* cur_thread = thread_current();
   while (!list_empty(&cur_thread->fds)) {
@@ -327,6 +330,7 @@ thread_exit (void)
     }
   }
   printf("thread_exit: Hi, I'm thread %d and I just exited with status %d. My parent has %d child threads left.\n", cur_thread->tid, parent->pcb.exit_code, parent->pcb.alive_count);
+  // sema_up(&sema);
 
   // This was here
   process_exit ();

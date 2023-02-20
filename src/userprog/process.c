@@ -18,11 +18,13 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
 
 
 typedef struct {
   char const* filename;
   struct thread* parent;
+  struct semaphore sema;
 } spawn_params;
 
 static thread_func start_process NO_RETURN;
@@ -50,10 +52,15 @@ process_execute (const char *file_name)
   params->parent = is_main_thread(caller) ? caller : caller->parent;
   params->filename = fn_copy;
 
+  sema_init(&params->sema, 0);
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, params);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
+  sema_down(&params->sema);
+
   return tid;
 }
 
@@ -78,9 +85,12 @@ start_process (void* aux)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
+
+  sema_up(&params->sema);
+
   if (!success)  {
     free(aux);
-    thread_exit ();
+    thread_exit();
   }
 
   child *child_list_item = malloc(sizeof(child));
