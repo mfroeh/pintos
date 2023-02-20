@@ -481,10 +481,11 @@ init_thread (struct thread *t, const char *name, int priority)
     list_init(&t->fds);
     t->fd_count = 0;
 #endif
-    if (strcmp(name, "main")) {
-      t->parent = thread_current();
-    } else {
+    if (!strcmp(name, "main")) {
       t->parent = 0;
+    } else {
+      struct thread* caller = thread_current();
+      t->parent = is_main_thread(caller) ? caller : caller->parent;
     }
 }
 

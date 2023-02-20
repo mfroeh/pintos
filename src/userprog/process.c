@@ -81,6 +81,14 @@ start_process (void* aux)
   if (!success) 
     thread_exit ();
 
+  child *child_list_item = malloc(sizeof(child));
+  child_list_item->me = thread_current();
+
+  printf("start_process: Hi, I'm thread %d, my parent is thread %d\n", thread_current()->tid, thread_current()->parent->tid);
+
+  parent->pcb.alive_count++;
+  list_push_back(&parent->pcb.children, &child_list_item->list_elem);
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
