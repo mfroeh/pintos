@@ -108,6 +108,14 @@ void close(int fd, struct thread *cur_thread) {
   }
 }
 
+int exec(char const* cmdline) {
+  tid_t tid = process_execute(cmdline);
+  if (tid == TID_ERROR) {
+    printf("Failed to create process!\n");
+  }
+  return tid;
+}
+
 int exit(int status) {
   thread_exit();
   return status;
@@ -135,8 +143,11 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
     f->eax = exit(status);
     break;
   }
-  case SYS_EXEC:
+  case SYS_EXEC: {
+    STACK_VAR(cmdline, char const*, stack, 1);
+    f->eax = exec(cmdline);
     break;
+  }
   case SYS_WAIT:
     break;
   case SYS_CREATE: {
