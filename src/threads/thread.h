@@ -157,4 +157,6 @@ typedef struct {
 
 bool wait_queue_cmp(const struct list_elem *a, const struct list_elem *b, void *aux);
 
+bool is_main_thread(struct thread*);
+
 #endif /* threads/thread.h */

@@ -481,6 +481,11 @@ init_thread (struct thread *t, const char *name, int priority)
     list_init(&t->fds);
     t->fd_count = 0;
 #endif
+    if (strcmp(name, "main")) {
+      t->parent = thread_current();
+    } else {
+      t->parent = 0;
+    }
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -602,4 +607,8 @@ bool wait_queue_cmp(const struct list_elem *a, const struct list_elem *b, void *
    sleeping_thread* t_a = list_entry(a, sleeping_thread, list_elem);
    sleeping_thread* t_b = list_entry(b, sleeping_thread, list_elem);                   
    return t_a->sleep_till < t_b->sleep_till;
+}
+
+bool is_main_thread(struct thread* t) {
+  return !strcmp(t->name, "main");
 }
