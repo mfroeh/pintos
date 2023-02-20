@@ -315,11 +315,23 @@ thread_exit (void)
       destroy_fd_struct(fd);
       cur_thread->fd_count--;
   }
+  
+  // TODO: Handle exit code
+  struct thread *parent = cur_thread->parent;
+  parent->pcb.exit_code = 0;
+  if (--parent->pcb.alive_count == 0) {
+    while (!list_empty(&parent->pcb.children)) {
+        struct list_elem *e = list_pop_front(&parent->pcb.children);
+        child *child_list_item = list_entry(e, child, list_elem);
+        free(child_list_item);
+    }
+  }
+  printf("thread_exit: Hi, I'm thread %d and I just exited with status %d. My parent has %d child threads left.\n", cur_thread->tid, parent->pcb.exit_code, parent->pcb.alive_count);
 
   // This was here
   process_exit ();
 #endif
-
+  
   /* Just set our status to dying and schedule another process.
      We will be destroyed during the call to schedule_tail(). */
   intr_disable ();

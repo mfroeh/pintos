@@ -117,6 +117,7 @@ int exec(char const* cmdline) {
 }
 
 int exit(int status) {
+  thread_current()->parent->pcb.exit_code = status;
   thread_exit();
   return status;
 }

@@ -159,7 +159,7 @@ bool wait_queue_cmp(const struct list_elem *a, const struct list_elem *b, void *
 
 bool is_main_thread(struct thread*);
 
-typedef struct {
+typedef struct child {
    struct thread* me;
    struct list_elem list_elem;
 } child;

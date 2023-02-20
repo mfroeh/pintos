@@ -78,8 +78,10 @@ start_process (void* aux)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success)  {
+    free(aux);
     thread_exit ();
+  }
 
   child *child_list_item = malloc(sizeof(child));
   child_list_item->me = thread_current();
@@ -88,6 +90,8 @@ start_process (void* aux)
 
   parent->pcb.alive_count++;
   list_push_back(&parent->pcb.children, &child_list_item->list_elem);
+
+  free(aux);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
