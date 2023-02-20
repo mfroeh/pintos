@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 
 typedef struct {
@@ -50,7 +51,7 @@ process_execute (const char *file_name)
   params->filename = fn_copy;
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, params);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -59,9 +60,12 @@ process_execute (const char *file_name)
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
+start_process (void* aux)
 {
-  char *file_name = file_name_;
+  spawn_params *params = (spawn_params*)aux;
+  struct thread *parent = params->parent;
+
+  char *file_name = params->filename;
   struct intr_frame if_;
   bool success;
 
