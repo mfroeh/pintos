@@ -19,10 +19,14 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
+#include "lib/string.h"
+#include "lib/stdio.h"
 
 
 typedef struct {
   char const* filename;
+  char* argv[32];
+  unsigned argc;
   struct thread* parent;
   struct semaphore *sema;
 } spawn_params;
@@ -50,11 +54,18 @@ process_execute (const char *file_name)
   struct thread *caller = thread_current();
   spawn_params* params = malloc(sizeof(spawn_params));
   params->parent = is_main_thread(caller) ? caller : caller->parent;
-  params->filename = fn_copy;
   params->sema = malloc(sizeof(struct semaphore));
+  params->argc = 0;
+  
+  char *token, *save_ptr;
+  for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
+    token = strtok_r (NULL, " ", &save_ptr)) {
+    params->argv[params->argc++] = token;
+    printf ("'%s'\n", token);
+  }
+  params->filename = params->argv[0];
 
   printf("process_execute: Hi, I'm %d and I want to create a child\n", caller->tid);
-
   sema_init(params->sema, 0);
 
   /* Create a new thread to execute FILE_NAME. */
@@ -93,13 +104,13 @@ start_process (void* aux)
   success = load (file_name, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
-  palloc_free_page (file_name);
 
   sema_up(params->sema);
   parent->pcb.alive_count++;
 
   if (!success)  {
     printf("start_process: Failed to load child \n");
+    palloc_free_page (file_name);
     thread_current()->exit_code = 1;
     thread_exit();
   }
@@ -110,6 +121,71 @@ start_process (void* aux)
   child_list_item->me = thread_current();
   list_push_back(&parent->pcb.children, &child_list_item->list_elem);
 
+  printf("start_process: Putting command line arguments on stack\n");
+  void** stack = if_.esp;
+  
+  unsigned push_stack(void* stack, unsigned offset, void* data, int n) {
+    memcpy(stack-offset, data, n);
+    return offset+n;
+  }
+
+  unsigned offset = 4;
+  for (int i = params->argc-1; i >= 1; --i) {
+    char* arg = params->argv[i];
+    offset = push_stack(stack, offset, arg, strlen(arg));
+    printf("%p: %c\n", stack-offset, stack-offset);
+  }
+
+  // pad here if we want offset % 4;
+
+  offset = push_stack(stack, offset, (void*)NULL, 4);
+  printf("%p: %s\n", stack);
+
+  // unsigned fresh = 0;
+  // for (int i = params->argc-1; i >= 1; --i) {
+  //   char* arg = params->argv[i];
+  //   offset = push_stack(stack, offset, (void*)(stack+fresh), 4);
+  //   fresh += strlen(arg);
+  // }
+
+  // offset = push_stack(stack, offset, (void*)(stack+offset-4), 4);
+  // offset = push_stack(stack, offset, &params->argc, 4);
+  // offset = push_stack(stack, offset, NULL, 4);
+
+#ifdef STACK_DEBUG
+  printf("*esp is %p\nstack contents:\n", *esp);
+  hex_dump((int)*esp , *esp, PHYS_BASE-*esp+16, true);
+  /* The same information, only more verbose: */
+  /* It prints every byte as if it was a char and every 32-bit aligned
+     data as if it was a pointer. */
+  void * ptr_save = PHYS_BASE;
+  i=-15;
+  while(ptr_save - i >= *esp) {
+    char *whats_there = (char *)(ptr_save - i);
+    // show the address ...
+    printf("%x\t", (uint32_t)whats_there);
+    // ... printable byte content ...
+    if(*whats_there >= 32 && *whats_there < 127)
+      printf("%c\t", *whats_there);
+    else
+      printf(" \t");
+    // ... and 32-bit aligned content 
+    if(i % 4 == 0) {
+      uint32_t *wt_uint32 = (uint32_t *)(ptr_save - i);
+      printf("%x\t", *wt_uint32);
+      printf("\n-------");
+      if(i != 0)
+        printf("------------------------------------------------");
+      else
+        printf(" the border between KERNEL SPACE and USER SPACE ");
+      printf("-------");
+    }
+    printf("\n");
+    i++;
+  }
+#endif
+
+  palloc_free_page (file_name);
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -274,7 +350,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
    /* Uncomment the following line to print some debug
      information. This will be useful when you debug the program
      stack.*/
-/*#define STACK_DEBUG*/
+#define STACK_DEBUG
 
 #ifdef STACK_DEBUG
   printf("*esp is %p\nstack contents:\n", *esp);
@@ -539,8 +615,8 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        // *esp = PHYS_BASE;
-	*esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
+        // *esp = PHYS_BASE - 12;
       else
         palloc_free_page (kpage);
     }
