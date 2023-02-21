@@ -111,6 +111,7 @@ struct thread
 #endif
    struct thread* parent;
    pcb pcb;
+   int exit_code;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -158,6 +159,7 @@ typedef struct {
 bool wait_queue_cmp(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 bool is_main_thread(struct thread*);
+void print_ready_queue();
 
 typedef struct child {
    struct thread* me;

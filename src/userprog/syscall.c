@@ -117,7 +117,7 @@ int exec(char const* cmdline) {
 }
 
 int exit(int status) {
-  thread_current()->parent->pcb.exit_code = status;
+  thread_current()->exit_code = status;
   thread_exit();
   return status;
 }
@@ -132,7 +132,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   unsigned int syscall_nr = *(int *)stack;
   struct thread *cur_thread = thread_current();
 
-  printf("system call %d!\n", syscall_nr);
+  printf("syscall_handler: system call %d made by %d!\n", syscall_nr, cur_thread->tid);
   switch (syscall_nr) {
   /* Project 2 */
   case SYS_HALT: {

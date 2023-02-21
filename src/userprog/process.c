@@ -24,7 +24,7 @@
 typedef struct {
   char const* filename;
   struct thread* parent;
-  struct semaphore sema;
+  struct semaphore *sema;
 } spawn_params;
 
 static thread_func start_process NO_RETURN;
@@ -51,15 +51,24 @@ process_execute (const char *file_name)
   spawn_params* params = malloc(sizeof(spawn_params));
   params->parent = is_main_thread(caller) ? caller : caller->parent;
   params->filename = fn_copy;
+  params->sema = malloc(sizeof(struct semaphore));
 
-  sema_init(&params->sema, 0);
+  printf("process_execute: Hi, I'm %d and I want to create a child\n", caller->tid);
+
+  sema_init(params->sema, 0);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, params);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
-  sema_down(&params->sema);
+  printf("From thread %d\n", thread_current()->tid);
+  print_ready_queue();
+  sema_down(params->sema);
+  printf("From thread %d\n", thread_current()->tid);
+  print_ready_queue();
+  free(params->sema);
+  free(params);
 
   return tid;
 }
@@ -86,22 +95,20 @@ start_process (void* aux)
   /* If load failed, quit. */
   palloc_free_page (file_name);
 
-  sema_up(&params->sema);
+  sema_up(params->sema);
+  parent->pcb.alive_count++;
 
   if (!success)  {
-    free(aux);
+    printf("start_process: Failed to load child \n");
+    thread_current()->exit_code = 1;
     thread_exit();
   }
 
-  child *child_list_item = malloc(sizeof(child));
-  child_list_item->me = thread_current();
-
   printf("start_process: Hi, I'm thread %d, my parent is thread %d\n", thread_current()->tid, thread_current()->parent->tid);
 
-  parent->pcb.alive_count++;
+  child *child_list_item = malloc(sizeof(child));
+  child_list_item->me = thread_current();
   list_push_back(&parent->pcb.children, &child_list_item->list_elem);
-
-  free(aux);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in

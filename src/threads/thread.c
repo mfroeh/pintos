@@ -307,9 +307,9 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
-  // struct semaphore sema;
-  // sema_init(&sema, 0);
-  // sema_down(&sema);
+  struct lock l;
+  lock_init(&l);
+  lock_acquire(&l);
   // Added by us
   struct thread* cur_thread = thread_current();
   while (!list_empty(&cur_thread->fds)) {
@@ -321,7 +321,7 @@ thread_exit (void)
   
   // TODO: Handle exit code
   struct thread *parent = cur_thread->parent;
-  parent->pcb.exit_code = 0;
+  parent->pcb.exit_code = cur_thread->exit_code;
   if (--parent->pcb.alive_count == 0) {
     while (!list_empty(&parent->pcb.children)) {
         struct list_elem *e = list_pop_front(&parent->pcb.children);
@@ -330,7 +330,7 @@ thread_exit (void)
     }
   }
   printf("thread_exit: Hi, I'm thread %d and I just exited with status %d. My parent has %d child threads left.\n", cur_thread->tid, parent->pcb.exit_code, parent->pcb.alive_count);
-  // sema_up(&sema);
+  lock_release(&l);
 
   // This was here
   process_exit ();
@@ -503,6 +503,7 @@ init_thread (struct thread *t, const char *name, int priority)
       struct thread* caller = thread_current();
       t->parent = is_main_thread(caller) ? caller : caller->parent;
     }
+    t->exit_code = 0;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -628,4 +629,14 @@ bool wait_queue_cmp(const struct list_elem *a, const struct list_elem *b, void *
 
 bool is_main_thread(struct thread* t) {
   return !strcmp(t->name, "main");
+}
+
+void print_ready_queue() {
+  struct list_elem *it;
+  printf("ready_list currently:\n");
+  for (it = list_begin(&ready_list); it != list_end(&ready_list); it = list_next(it)) {
+    struct thread *t = list_entry(it, struct thread, elem);
+    printf("%d->", t->tid);
+  }
+  printf("\n---\n");
 }
