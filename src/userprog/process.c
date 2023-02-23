@@ -62,7 +62,6 @@ process_execute (const char *file_name)
     token = strtok_r (NULL, " ", &save_ptr)) {
     ASSERT(params->argc != 32);
     params->argv[params->argc++] = token;
-    printf ("'%s'\n", token);
   }
   params->filename = params->argv[0];
 
@@ -116,19 +115,6 @@ start_process (void* aux)
   child *child_list_item = malloc(sizeof(child));
   child_list_item->me = thread_current();
   list_push_back(&parent->pcb.children, &child_list_item->list_elem);
-
-
-
-  // unsigned fresh = 0;
-  // for (int i = params->argc-1; i >= 1; --i) {
-  //   char* arg = params->argv[i];
-  //   offset = push_stack(stack, offset, (void*)(stack+fresh), 4);
-  //   fresh += strlen(arg);
-  // }
-
-  // offset = push_stack(stack, offset, (void*)(stack+offset-4), 4);
-  // offset = push_stack(stack, offset, &params->argc, 4);
-  // offset = push_stack(stack, offset, NULL, 4);
 
   palloc_free_page (params->filename);
   /* Start the user process by simulating a return from an
