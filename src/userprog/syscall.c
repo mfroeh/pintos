@@ -116,6 +116,12 @@ int exec(char const* cmdline) {
   return tid;
 }
 
+int wait(tid_t pid) {
+  
+
+  return 0;
+}
+
 int exit(int status) {
   thread_current()->exit_code = status;
   thread_exit();
@@ -150,7 +156,11 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
     break;
   }
   case SYS_WAIT:
+  {
+    STACK_VAR(pid, tid_t, stack, 1);
+    f->eax = wait(pid);
     break;
+  }
   case SYS_CREATE: {
     STACK_VAR(file, char const *, stack, 1);
     STACK_VAR(initial_size, unsigned, stack, 2);
