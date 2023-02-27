@@ -3,10 +3,12 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "lib/kernel/list.h"
+#include "pagedir.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 
@@ -108,7 +110,7 @@ void close(int fd, struct thread *cur_thread) {
   }
 }
 
-int exec(char const* cmdline) {
+int exec(char const *cmdline) {
   tid_t tid = process_execute(cmdline);
   if (tid == TID_ERROR) {
     printf("Failed to create process!\n");
@@ -116,16 +118,40 @@ int exec(char const* cmdline) {
   return tid;
 }
 
-int wait(tid_t pid) {
-  
-
-  return 0;
-}
+int wait(tid_t pid) { return 0; }
 
 int exit(int status) {
   thread_current()->exit_code = status;
   thread_exit();
   return status;
+}
+
+bool validate_ptr(void *ptr) {
+  bool points_user_mem = ptr < PHYS_BASE && ptr >= 0;
+  bool has_page = pagedir_get_page(thread_current()->pagedir, ptr) != NULL;
+  return has_page && points_user_mem;
+}
+
+bool validate_c_str(char *ptr) {
+  while (*ptr != '\0') {
+    if (!validate_ptr(ptr++)) {
+      return false;
+    }
+  }
+
+  // Check the '\0'
+  return validate_ptr(ptr);
+}
+
+bool validate_buffer(void *ptr, unsigned size) {
+  // TODO: Use page boundaries
+  for (unsigned i = 0; i < size; ++i) {
+    if (!validate_ptr(ptr + i)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /* Syscall handler */
@@ -135,10 +161,15 @@ void syscall_init(void) {
 
 static void syscall_handler(struct intr_frame *f UNUSED) {
   void *stack = f->esp;
+  if (!validate_ptr(stack)) {
+    exit(-1);
+    return;
+  }
+
   unsigned int syscall_nr = *(int *)stack;
   struct thread *cur_thread = thread_current();
-
-  printf("syscall_handler: system call %d made by %d!\n", syscall_nr, cur_thread->tid);
+  printf("syscall_handler: system call %d made by %d!\n", syscall_nr,
+         cur_thread->tid);
   switch (syscall_nr) {
   /* Project 2 */
   case SYS_HALT: {
@@ -151,18 +182,25 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
     break;
   }
   case SYS_EXEC: {
-    STACK_VAR(cmdline, char const*, stack, 1);
+    STACK_VAR(cmdline, char const *, stack, 1);
+    if (!validate_c_str(cmdline)) {
+      exit(-1);
+      return;
+    }
     f->eax = exec(cmdline);
     break;
   }
-  case SYS_WAIT:
-  {
+  case SYS_WAIT: {
     STACK_VAR(pid, tid_t, stack, 1);
     f->eax = wait(pid);
     break;
   }
   case SYS_CREATE: {
     STACK_VAR(file, char const *, stack, 1);
+    if (!validate_c_str(file)) {
+      exit(-1);
+      return;
+    }
     STACK_VAR(initial_size, unsigned, stack, 2);
     f->eax = create(file, initial_size);
     break;
@@ -171,6 +209,10 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
     break;
   case SYS_OPEN: {
     STACK_VAR(file, char const *, stack, 1);
+    if (!validate_c_str(file)) {
+      exit(-1);
+      return;
+    }
     f->eax = open(file, cur_thread);
     break;
   }
@@ -180,6 +222,10 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
     STACK_VAR(fd, int, stack, 1);
     STACK_VAR(buffer, void *, stack, 2);
     STACK_VAR(size, unsigned, stack, 3);
+    if (!validate_buffer(buffer, size)) {
+      exit(-1);
+      return;
+    }
     f->eax = read(fd, buffer, size, cur_thread);
     break;
   }
@@ -187,6 +233,10 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
     STACK_VAR(fd, int, stack, 1);
     STACK_VAR(buffer, void const *, stack, 2);
     STACK_VAR(size, unsigned, stack, 3);
+    if (!validate_buffer(buffer, size)) {
+      exit(-1);
+      return;
+    }
     f->eax = write(fd, buffer, size, cur_thread);
     break;
   }
