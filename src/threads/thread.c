@@ -319,7 +319,8 @@ thread_exit (void)
       cur_thread->fd_count--;
   }
   
-  // TODO: Handle exit code
+  printf("%s: exit(%d)\n", cur_thread->name, cur_thread->exit_code);
+
   struct thread *parent = cur_thread->parent;
   parent->pcb.exit_code = cur_thread->exit_code;
   if (--parent->pcb.alive_count == 0) {
@@ -328,8 +329,28 @@ thread_exit (void)
         child *child_list_item = list_entry(e, child, list_elem);
         free(child_list_item);
     }
+  } else {
+    struct list_elem* it;
+    for (it = list_begin(&parent->pcb.children); it != list_end(&parent->pcb.children); it = list_next(it)) {
+      child *ch = list_entry(it, child, list_elem);
+      
+      // Get the child that exited
+      if (ch->tid == cur_thread->tid) {
+        ch->is_dead = true;
+        ch->exit_code = cur_thread->exit_code;
+        if (parent->pcb.waiting_on == ch->tid) {
+          // printf("%s: exit(%d)\n", cur_thread->name, ch->exit_code);
+          // printf("I'm %d and im sema_upping %d\n", ch->tid, parent->tid);
+          sema_up(parent->pcb.sema_wait);
+          free(parent->pcb.sema_wait);
+          parent->pcb.waiting_on = 0;
+        }
+      }
+      break;
+    }
   }
-  printf("thread_exit: Hi, I'm thread %d and I just exited with status %d. My parent has %d child threads left.\n", cur_thread->tid, parent->pcb.exit_code, parent->pcb.alive_count);
+
+  // printf("thread_exit: Hi, I'm thread %d and I just exited with status %d. My parent has %d child threads left.\n", cur_thread->tid, parent->pcb.exit_code, parent->pcb.alive_count);
   lock_release(&l);
 
   // This was here

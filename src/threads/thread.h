@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <stdint.h>
 #include "lib/kernel/list.h"
+#include "threads/synch.h"
 
 #ifdef USERPROG
 #include "lib/kernel/list.h"
@@ -32,6 +33,8 @@ typedef struct {
    int exit_code;
    int alive_count;
    struct list children;
+   struct semaphore *sema_wait;
+   tid_t waiting_on;
 } pcb;
 
 /* A kernel thread or user process.
@@ -163,6 +166,9 @@ void print_ready_queue();
 
 typedef struct child {
    struct thread* me;
+   bool is_dead;
+   tid_t tid;
+   int exit_code;
    struct list_elem list_elem;
 } child;
 

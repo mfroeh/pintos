@@ -29,6 +29,7 @@ typedef struct {
   unsigned argc;
   struct thread* parent;
   struct semaphore *sema;
+  char* fn_copy;
 } spawn_params;
 
 static thread_func start_process NO_RETURN;
@@ -64,12 +65,13 @@ process_execute (const char *file_name)
     params->argv[params->argc++] = token;
   }
   params->filename = params->argv[0];
+  params->fn_copy = fn_copy;
 
-  printf("process_execute: Hi, I'm %d and I want to create a child\n", caller->tid);
+  // printf("process_execute: Hi, I'm %d and I want to create a child\n", caller->tid);
   sema_init(params->sema, 0);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, params);
+  tid = thread_create (params->filename, PRI_DEFAULT, start_process, params);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
@@ -104,19 +106,19 @@ start_process (void* aux)
   parent->pcb.alive_count++;
 
   if (!success)  {
-    printf("start_process: Failed to load child \n");
-    palloc_free_page (params->filename);
+    // printf("start_process: Failed to load child \n");
+    // palloc_free_page (params->filename);
     thread_current()->exit_code = 1;
     thread_exit();
   }
 
-  printf("start_process: Hi, I'm thread %d, my parent is thread %d\n", thread_current()->tid, thread_current()->parent->tid);
-
   child *child_list_item = malloc(sizeof(child));
   child_list_item->me = thread_current();
+  child_list_item->tid = thread_current()->tid;
+  child_list_item->is_dead = false;
   list_push_back(&parent->pcb.children, &child_list_item->list_elem);
 
-  palloc_free_page (params->filename);
+  // palloc_free_page (params->fn_copy);
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -139,8 +141,29 @@ start_process (void* aux)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while (true) { }
-  return -1;
+  // Parent calls wait before the child terminates
+  struct thread* t = thread_current();
+  if (t->tid != 1) {
+    t = t->parent;
+  }
+
+  struct list_elem *it;
+  for (it = list_begin(&t->pcb.children); it != list_end(&t->pcb.children); it = list_next(it)) {
+    child *ch = list_entry(it, child, list_elem);
+    if (ch->tid == child_tid) {
+      if (ch->is_dead) {
+        return ch->exit_code;
+      } else {
+        t->pcb.sema_wait = malloc(sizeof(struct semaphore));
+        // printf("%d downing sema! child has exit with code %d\n", thread_current()->tid, ch->exit_code);
+        t->pcb.waiting_on = ch->tid;
+        sema_init(t->pcb.sema_wait, 0);
+        sema_down(t->pcb.sema_wait);
+        // printf("%d process child exit with code %d\n", thread_current()->tid, ch->exit_code);
+        return ch->exit_code;
+      }
+    }
+  }
 }
 
 /* Free the current process's resources. */
@@ -336,7 +359,7 @@ load (spawn_params* params, void (**eip) (void), void **esp)
    /* Uncomment the following line to print some debug
      information. This will be useful when you debug the program
      stack.*/
-#define STACK_DEBUG
+// #define STACK_DEBUG
 
 #ifdef STACK_DEBUG
   printf("*esp is %p\nstack contents:\n", *esp);

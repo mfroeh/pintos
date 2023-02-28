@@ -111,14 +111,12 @@ void close(int fd, struct thread *cur_thread) {
 }
 
 int exec(char const *cmdline) {
-  tid_t tid = process_execute(cmdline);
-  if (tid == TID_ERROR) {
-    printf("Failed to create process!\n");
-  }
-  return tid;
+  return process_execute(cmdline);
 }
 
-int wait(tid_t pid) { return 0; }
+int wait(tid_t pid) { 
+  return process_wait(pid);
+}
 
 int exit(int status) {
   thread_current()->exit_code = status;
@@ -127,12 +125,15 @@ int exit(int status) {
 }
 
 bool validate_ptr(void *ptr) {
-  bool points_user_mem = ptr < PHYS_BASE && ptr >= 0;
-  bool has_page = pagedir_get_page(thread_current()->pagedir, ptr) != NULL;
-  return has_page && points_user_mem;
+  printf("%p", ptr);
+  bool points_user_mem = ptr < PHYS_BASE && ptr > 0;
+  return points_user_mem && pagedir_get_page(thread_current()->pagedir, ptr) != NULL;
 }
 
 bool validate_c_str(char *ptr) {
+  if (!validate_ptr(ptr))
+    return false;
+
   while (*ptr != '\0') {
     if (!validate_ptr(ptr++)) {
       return false;
@@ -162,14 +163,15 @@ void syscall_init(void) {
 static void syscall_handler(struct intr_frame *f UNUSED) {
   void *stack = f->esp;
   if (!validate_ptr(stack)) {
+    printf("Stack pointer invalid!\n");
     exit(-1);
     return;
   }
 
   unsigned int syscall_nr = *(int *)stack;
   struct thread *cur_thread = thread_current();
-  printf("syscall_handler: system call %d made by %d!\n", syscall_nr,
-         cur_thread->tid);
+  // printf("syscall_handler: system call %d made by %d!\n", syscall_nr,
+  //        cur_thread->tid);
   switch (syscall_nr) {
   /* Project 2 */
   case SYS_HALT: {
