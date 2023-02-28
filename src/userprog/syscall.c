@@ -125,7 +125,6 @@ int exit(int status) {
 }
 
 bool validate_ptr(void *ptr) {
-  printf("%p", ptr);
   bool points_user_mem = ptr < PHYS_BASE && ptr > 0;
   return points_user_mem && pagedir_get_page(thread_current()->pagedir, ptr) != NULL;
 }
@@ -163,7 +162,7 @@ void syscall_init(void) {
 static void syscall_handler(struct intr_frame *f UNUSED) {
   void *stack = f->esp;
   if (!validate_ptr(stack)) {
-    printf("Stack pointer invalid!\n");
+    // printf("Stack pointer invalid!\n");
     exit(-1);
     return;
   }

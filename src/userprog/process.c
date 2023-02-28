@@ -70,6 +70,11 @@ process_execute (const char *file_name)
   // printf("process_execute: Hi, I'm %d and I want to create a child\n", caller->tid);
   sema_init(params->sema, 0);
 
+  // Don't attempt thread creation if file doens't not exist on disk
+  if (filesys_open(params->filename) == NULL) {
+    return -1;
+  }
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (params->filename, PRI_DEFAULT, start_process, params);
   if (tid == TID_ERROR)
