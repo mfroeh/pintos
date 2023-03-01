@@ -167,6 +167,7 @@ void print_ready_queue();
 typedef struct child {
    struct thread* me;
    bool is_dead;
+   bool was_waited_on;
    tid_t tid;
    int exit_code;
    struct list_elem list_elem;
