@@ -155,6 +155,8 @@ int process_wait(tid_t child_tid UNUSED)
   if (t->tid != 1)
   {
     t = t->parent;
+  } else {
+    // The main thread should notbe able to wait on anything, as it can only be invoked by syscall
   }
 
   struct list_elem *it;
@@ -180,14 +182,14 @@ int process_wait(tid_t child_tid UNUSED)
 
       // printf("Called wait on %d from %d\n", ch->tid, thread_current()->tid);
       // First call to wait and child has not exited
-      t->pcb.sema_wait = malloc(sizeof(struct semaphore));
+      ch->sema_wait = malloc(sizeof(struct semaphore));
       // printf("%d downing sema! child has exit with code %d\n", thread_current()->tid, ch->exit_code);
       t->pcb.waiting_on = ch->tid;
       ch->was_waited_on = true;
-      sema_init(t->pcb.sema_wait, 0);
-      sema_down(t->pcb.sema_wait);
+      sema_init(ch->sema_wait, 0);
+      sema_down(ch->sema_wait);
       ASSERT(ch->is_dead);
-      free(t->pcb.sema_wait);
+      free(ch->sema_wait);
       // printf("%d process child exit with code %d\n", thread_current()->tid, ch->exit_code);
       return ch->exit_code;
     }

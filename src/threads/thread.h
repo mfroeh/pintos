@@ -33,7 +33,6 @@ typedef struct {
    int exit_code;
    int alive_count;
    struct list children;
-   struct semaphore *sema_wait;
    tid_t waiting_on;
 } pcb;
 
@@ -170,6 +169,7 @@ typedef struct child {
    bool was_waited_on;
    tid_t tid;
    int exit_code;
+   struct semaphore *sema_wait;
    struct list_elem list_elem;
 } child;
 

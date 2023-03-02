@@ -336,7 +336,7 @@ void thread_exit(void)
         // printf("%s: exit(%d)\n", cur_thread->name, ch->exit_code);
         // printf("I'm %d and im sema_upping %d\n", ch->tid, parent->tid);
         parent->pcb.waiting_on = 0;
-        sema_up(parent->pcb.sema_wait);
+        sema_up(ch->sema_wait);
       }
       break;
     }
