@@ -184,7 +184,7 @@ int process_wait(tid_t child_tid UNUSED)
       // First call to wait and child has not exited
       ch->sema_wait = malloc(sizeof(struct semaphore));
       // printf("%d downing sema! child has exit with code %d\n", thread_current()->tid, ch->exit_code);
-      t->pcb.waiting_on = ch->tid;
+      // t->pcb.waiting_on = ch->tid;
       ch->was_waited_on = true;
       sema_init(ch->sema_wait, 0);
       sema_down(ch->sema_wait);

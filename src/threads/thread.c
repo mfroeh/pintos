@@ -316,7 +316,8 @@ void thread_exit(void)
     cur_thread->fd_count--;
   }
 
-  printf("%s: exit(%d)\n", cur_thread->name, cur_thread->exit_code);
+  printf("%s: exit(%d)\n", thread_current()->name, thread_current()->exit_code);
+
 
   struct thread *parent = cur_thread->parent;
   parent->pcb.exit_code = cur_thread->exit_code;
@@ -331,11 +332,11 @@ void thread_exit(void)
     {
       ch->is_dead = true;
       ch->exit_code = cur_thread->exit_code;
-      if (parent->pcb.waiting_on == ch->tid)
+      if (ch->was_waited_on)
       {
         // printf("%s: exit(%d)\n", cur_thread->name, ch->exit_code);
         // printf("I'm %d and im sema_upping %d\n", ch->tid, parent->tid);
-        parent->pcb.waiting_on = 0;
+        // parent->pcb.waiting_on = 0;
         sema_up(ch->sema_wait);
       }
       break;
