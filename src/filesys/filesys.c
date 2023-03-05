@@ -7,9 +7,13 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "devices/disk.h"
+#include "threads/synch.h"
 
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
+
+// Directory lock used in directory.c
+struct lock *lock_dir;
 
 static void do_format (void);
 
@@ -29,6 +33,8 @@ filesys_init (bool format)
     do_format ();
 
   free_map_open ();
+  lock_dir = malloc(sizeof(struct lock));
+  lock_init(lock_dir);
 }
 
 /* Shuts down the file system module, writing any unwritten data
@@ -37,6 +43,7 @@ void
 filesys_done (void) 
 {
   free_map_close ();
+  free(lock_dir);
 }
 
 /* Creates a file named NAME with the given INITIAL_SIZE.
