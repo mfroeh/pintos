@@ -9,10 +9,10 @@ In a concurrent operating systems (suppose a single CPU core) this means that ot
 When sleeping, a process suspends itself for a set amount of time (e.g. ticks) until it can be scheduled again, by the os adding the process to the ready queue once the process has slept long enough.
 Yielding immediatly places the current process back in to the ready queue.
 
-3. What is the difference between locks and semaphores? (Hint: there are
-two main differences). What is a deadlock?
+3. What is the difference between locks and semaphores? (Hint: there are two main differences). What is a deadlock?
 
-TODO
+Locks only allow only their creator thread to enter the critical section and only a single thread can get access to the critical section at a given time.
+Semaphores also allow other threads to enter the critical section and can allow access to multiple threads at the same time, where as a lock can only give access to a single thread at a time.
 
 Deadlock: In a deadlock, two or more processes cannot continue execution because they are waiting on a resource that is made available by another process.
 This other process cannot generate the resource since it is waiting on the other process.
