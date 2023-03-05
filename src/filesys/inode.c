@@ -42,7 +42,7 @@ struct inode
   int deny_write_cnt;    /* 0: writes ok, >0: deny writes. */
   struct semaphore *sema_resource;
   struct semaphore *sema_rmutex;
-  struct semaphore *sema_sq;
+  struct semaphore *sema_queue;
   int read_count;
   struct inode_disk data; /* Inode content. */
 };
@@ -154,8 +154,8 @@ inode_open(disk_sector_t sector)
   sema_init(inode->sema_resource, 1);
   inode->sema_rmutex = malloc(sizeof(struct semaphore));
   sema_init(inode->sema_rmutex, 1);
-  inode->sema_sq = malloc(sizeof(struct semaphore));
-  sema_init(inode->sema_sq, 1);
+  inode->sema_queue = malloc(sizeof(struct semaphore));
+  sema_init(inode->sema_queue, 1);
   inode->read_count = 0;
   disk_read(filesys_disk, inode->sector, &inode->data);
   
@@ -210,7 +210,7 @@ void inode_close(struct inode *inode)
 
     free(inode->sema_resource);
     free(inode->sema_rmutex);
-    free(inode->sema_sq);
+    free(inode->sema_queue);
 
     free(inode);
   }
@@ -234,6 +234,17 @@ off_t inode_read_at(struct inode *inode, void *buffer_, off_t size, off_t offset
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
+
+  sema_down(inode->sema_queue);
+  sema_down(inode->sema_rmutex);
+
+  // If we are the first reader, we have to take control over writing
+  if (++inode->read_count == 1) {
+    sema_down(inode->sema_resource);
+  }
+
+  sema_up(inode->sema_queue);
+  sema_up(inode->sema_rmutex);
 
   while (size > 0)
   {
@@ -277,6 +288,15 @@ off_t inode_read_at(struct inode *inode, void *buffer_, off_t size, off_t offset
   }
   free(bounce);
 
+  sema_down(inode->sema_rmutex);
+
+  // If we are the last reader, we can reallow writers
+  if (--inode->read_count == 0) {
+    sema_up(inode->sema_resource);
+  }
+  
+  sema_up(inode->sema_rmutex);
+
   return bytes_read;
 }
 
@@ -292,8 +312,14 @@ off_t inode_write_at(struct inode *inode, const void *buffer_, off_t size,
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
 
-  if (inode->deny_write_cnt)
+  sema_down(inode->sema_queue);
+  sema_up(inode->sema_resource);
+  sema_up(inode->sema_queue);
+
+  if (inode->deny_write_cnt) {
+    sema_up(inode->sema_resource);
     return 0;
+  }
 
   while (size > 0)
   {
@@ -343,6 +369,8 @@ off_t inode_write_at(struct inode *inode, const void *buffer_, off_t size,
     bytes_written += chunk_size;
   }
   free(bounce);
+
+  sema_up(inode->sema_resource);
 
   return bytes_written;
 }
