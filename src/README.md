@@ -1,0 +1,7 @@
+# Question 1: What are argc and argv that main in a C program takes as arguments?
+
+Arguments may be passed along to a program when launching it from the terminal. These arguments are pushed on the stack by the operating system as part of setting up the stack after loading the program into memory. In c programs, the argc argument is an unsigned integer equal to the amount of arguments passed to the program. The arguments are passed as c-strings (char *) and argv is a pointer to the first argument (char **). Importantly, the first argument is always the name of the program on disk which also means that always argc >= 1.
+
+# Question 2: Where are they stored when the program begins executing?
+
+As instructed by the 80x86 calling convention, arguments to any function are pushes on the stack in reverse order before jumping to a function. The last argument always is the return address (the address of the instruction before jumping to the function). In pintos, the program arguments are pushed onto the stack starting just below the beginning of PHYS_BASE. Since the stack grows downwards, the last argument to the program (as a char array) is pushed to the highest address with all other arguments following in order. Once all arguments are pushed, pointers (c strings) to the char arrays, and a pointer to the pointer to the first pointer (argv) are pushed onto the stack. Finally argc and a NULL pointer sentinel (return address) are pushed onto the stack and the stack pointer is initialized to the return address.
