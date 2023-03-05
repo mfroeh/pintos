@@ -12,8 +12,12 @@
 #include <stdio.h>
 #include <syscall-nr.h>
 
-#define STACK_VAR(NAME, TYPE, STACK, ARG)                 \
-  if (!validate_ptr(STACK+4*ARG)) { exit(-1); return; }    \
+#define STACK_VAR(NAME, TYPE, STACK, ARG) \
+  if (!validate_ptr(STACK + 4 * ARG))     \
+  {                                       \
+    exit(-1);                             \
+    return;                               \
+  }                                       \
   TYPE NAME = (*(TYPE *)(STACK + 4 * ARG))
 #define INT_MAX 0x7FFFFFFF
 
@@ -127,6 +131,40 @@ void close(int fd, struct thread *cur_thread)
     cur_thread->fd_count--;
     destroy_fd_struct(elem_fd);
   }
+}
+
+void seek(int fd, unsigned position)
+{
+  fd_struct *elem_fd = find_fd_struct(&thread_current()->fds, fd);
+  if (elem_fd != NULL)
+  {
+    file_seek(elem_fd->file_, position);
+  }
+}
+
+unsigned tell(int fd)
+{
+  fd_struct *elem_fd = find_fd_struct(&thread_current()->fds, fd);
+  if (elem_fd != NULL)
+  {
+    return file_tell(elem_fd->file_);
+  }
+  return -1;
+}
+
+int filesize(int fd)
+{
+  fd_struct *elem_fd = find_fd_struct(&thread_current()->fds, fd);
+  if (elem_fd != NULL)
+  {
+    return file_length(elem_fd->file_);
+  }
+  return -1;
+}
+
+bool remove(const char *file_name)
+{
+  return filesys_remove(file_name);
 }
 
 int exec(char const *cmdline)
@@ -247,7 +285,16 @@ static void syscall_handler(struct intr_frame *f UNUSED)
     break;
   }
   case SYS_REMOVE:
+  {
+    STACK_VAR(file, char const *, stack, 1);
+    if (!validate_c_str(file))
+    {
+      exit(-1);
+      return;
+    }
+    f->eax = remove(file);
     break;
+  }
   case SYS_OPEN:
   {
     STACK_VAR(file, char const *, stack, 1);
@@ -260,7 +307,11 @@ static void syscall_handler(struct intr_frame *f UNUSED)
     break;
   }
   case SYS_FILESIZE:
+  {
+    STACK_VAR(fd, int, stack, 1);
+    f->eax = filesize(fd);
     break;
+  }
   case SYS_READ:
   {
     STACK_VAR(fd, int, stack, 1);
@@ -288,9 +339,18 @@ static void syscall_handler(struct intr_frame *f UNUSED)
     break;
   }
   case SYS_SEEK:
+  {
+    STACK_VAR(fd, int, stack, 1);
+    STACK_VAR(position, unsigned, stack, 2);
+    seek(fd, position);
     break;
+  }
   case SYS_TELL:
+  {
+    STACK_VAR(fd, int, stack, 1);
+    f->eax = tell(fd);
     break;
+  }
   case SYS_CLOSE:
   {
     STACK_VAR(fd, int, stack, 1);
