@@ -319,7 +319,7 @@ void thread_exit(void)
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->exit_code);
 
 
-  struct thread *parent = cur_thread->parent;
+  struct thread *parent = cur_thread->parent != NULL ? cur_thread->parent : cur_thread;
   parent->pcb.exit_code = cur_thread->exit_code;
 
   struct list_elem *it;
