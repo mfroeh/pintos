@@ -8,6 +8,9 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 
+// The lock that was initialized in filesys.c
+extern struct lock *lock_inode;
+
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
@@ -105,6 +108,7 @@ bool inode_create(disk_sector_t sector, off_t length)
     }
     free(disk_inode);
   }
+
   return success;
 }
 
@@ -117,6 +121,8 @@ inode_open(disk_sector_t sector)
   struct list_elem *e;
   struct inode *inode;
 
+  lock_acquire(lock_inode);
+
   /* Check whether this inode is already open. */
   for (e = list_begin(&open_inodes); e != list_end(&open_inodes);
        e = list_next(e))
@@ -125,6 +131,7 @@ inode_open(disk_sector_t sector)
     if (inode->sector == sector)
     {
       inode_reopen(inode);
+      lock_release(lock_inode);
       return inode;
     }
   }
@@ -132,7 +139,10 @@ inode_open(disk_sector_t sector)
   /* Allocate memory. */
   inode = malloc(sizeof *inode);
   if (inode == NULL)
+  {
+    lock_release(lock_inode);
     return NULL;
+  }
 
   /* Initialize. */
   list_push_front(&open_inodes, &inode->elem);
@@ -148,6 +158,9 @@ inode_open(disk_sector_t sector)
   sema_init(inode->sema_sq, 1);
   inode->read_count = 0;
   disk_read(filesys_disk, inode->sector, &inode->data);
+  
+  lock_release(lock_inode);
+
   return inode;
 }
 
@@ -179,6 +192,8 @@ void inode_close(struct inode *inode)
   if (inode == NULL)
     return;
 
+  lock_acquire(lock_inode);
+
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
   {
@@ -199,6 +214,8 @@ void inode_close(struct inode *inode)
 
     free(inode);
   }
+
+  lock_release(lock_inode);
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who

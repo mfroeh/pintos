@@ -14,6 +14,7 @@ struct disk *filesys_disk;
 
 // Directory lock used in directory.c
 struct lock *lock_dir;
+struct lock *lock_inode;
 
 static void do_format (void);
 
@@ -26,6 +27,12 @@ filesys_init (bool format)
   if (filesys_disk == NULL)
     PANIC ("hd0:1 (hdb) not present, file system initialization failed");
 
+  lock_dir = malloc(sizeof(struct lock));
+  lock_init(lock_dir);
+
+  lock_inode = malloc(sizeof(struct lock));
+  lock_init(lock_inode);
+
   inode_init ();
   free_map_init ();
 
@@ -33,8 +40,6 @@ filesys_init (bool format)
     do_format ();
 
   free_map_open ();
-  lock_dir = malloc(sizeof(struct lock));
-  lock_init(lock_dir);
 }
 
 /* Shuts down the file system module, writing any unwritten data
@@ -44,6 +49,7 @@ filesys_done (void)
 {
   free_map_close ();
   free(lock_dir);
+  free(lock_inode);
 }
 
 /* Creates a file named NAME with the given INITIAL_SIZE.
