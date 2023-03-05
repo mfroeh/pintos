@@ -6,6 +6,9 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 
+// Bring the lock initialized in filesys.c into scope
+extern struct lock *lock_dir;
+
 /* A directory. */
 struct dir 
   {
@@ -124,10 +127,14 @@ dir_lookup (const struct dir *dir, const char *name,
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  lock_acquire(lock_dir);
+
   if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
   else
     *inode = NULL;
+
+  lock_release(lock_dir);
 
   return *inode != NULL;
 }
@@ -147,6 +154,8 @@ dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector)
   
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+
+  lock_acquire(lock_dir);
 
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
@@ -175,6 +184,7 @@ dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector)
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
  done:
+  lock_release(lock_dir);
   return success;
 }
 
@@ -191,6 +201,8 @@ dir_remove (struct dir *dir, const char *name)
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+
+  lock_acquire(lock_dir);
 
   /* Find directory entry. */
   if (!lookup (dir, name, &e, &ofs))
@@ -212,6 +224,7 @@ dir_remove (struct dir *dir, const char *name)
 
  done:
   inode_close (inode);
+  lock_release(lock_dir);
   return success;
 }
 

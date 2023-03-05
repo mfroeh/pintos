@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <stdint.h>
 #include "lib/kernel/list.h"
+#include "threads/synch.h"
 
 #ifdef USERPROG
 #include "lib/kernel/list.h"
@@ -27,6 +28,13 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+typedef struct {
+   int exit_code;
+   int alive_count;
+   struct list children;
+   tid_t waiting_on;
+} pcb;
 
 /* A kernel thread or user process.
 
@@ -103,6 +111,9 @@ struct thread
     struct list fds;
     unsigned fd_count;
 #endif
+   struct thread* parent;
+   pcb pcb;
+   int exit_code;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -148,5 +159,18 @@ typedef struct {
 } sleeping_thread;
 
 bool wait_queue_cmp(const struct list_elem *a, const struct list_elem *b, void *aux);
+
+bool is_main_thread(struct thread*);
+void print_ready_queue();
+
+typedef struct child {
+   struct thread* me;
+   bool is_dead;
+   bool was_waited_on;
+   tid_t tid;
+   int exit_code;
+   struct semaphore *sema_wait;
+   struct list_elem list_elem;
+} child;
 
 #endif /* threads/thread.h */

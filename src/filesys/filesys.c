@@ -7,9 +7,14 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "devices/disk.h"
+#include "threads/synch.h"
 
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
+
+// Directory lock used in directory.c
+struct lock *lock_dir;
+struct lock *lock_inode;
 
 static void do_format (void);
 
@@ -21,6 +26,12 @@ filesys_init (bool format)
   filesys_disk = disk_get (0, 1);
   if (filesys_disk == NULL)
     PANIC ("hd0:1 (hdb) not present, file system initialization failed");
+
+  lock_dir = malloc(sizeof(struct lock));
+  lock_init(lock_dir);
+
+  lock_inode = malloc(sizeof(struct lock));
+  lock_init(lock_inode);
 
   inode_init ();
   free_map_init ();
@@ -37,6 +48,8 @@ void
 filesys_done (void) 
 {
   free_map_close ();
+  free(lock_dir);
+  free(lock_inode);
 }
 
 /* Creates a file named NAME with the given INITIAL_SIZE.

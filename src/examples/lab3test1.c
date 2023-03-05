@@ -11,7 +11,7 @@ int
 main (int argc, char *argv[])
 {
   int pid=exec("lab3test1");
-  printf("Child process ID: %d",pid);
+  printf("Child process ID: %d\n",pid);
 
   return EXIT_SUCCESS;
 }
