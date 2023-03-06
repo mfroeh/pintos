@@ -51,7 +51,26 @@ chronological order. What will student.txt contain?
 
 Assume synchronization of the file system.
 
-TODO
+Process A: create(student.txt, 1000)
+- Create a new file
+Process A: fd = open(student.txt)
+- Opening the file returns a valid fd
+Process B: remove(student.txt)
+- Files directory entry is removed and inode of file is flagged for deletion 
+Process C: create(student.txt, 1000)
+- Creates a new file on disk, this one is different from the one created before
+Process C: fd = open(student.txt)
+- Opening the new file returns a valid fd 
+Process C: write(fd, ”AAA”, 3)
+- Write to the new file
+Process A: write(fd, ”BBB”, 3)
+- Write to the old file
+Process A: close(fd)
+- Close the old file, which triggers its removal from disk
+Process C: close(fd)
+- Close the new file
+
+The file "student.txt" content is "AAA".
 
 # Control Questions:
 
