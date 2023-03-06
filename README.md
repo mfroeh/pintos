@@ -108,11 +108,13 @@ free_map_allocate is called when a new inode is created on disk (inode_create) a
 
 - There are few levels where you can add your implementation of the readers-
 writers problem: system calls, files, and inodes. Think about advantages
-and disadvantages of each approach. Which level is the most appropriate?
-Motivate your answer.
+and disadvantages of each approach. Which level is the most appropriate? Motivate your answer.
 
 System calls:
-- We would do synchronization only if a user program uses a file. We would have to keep 
+- We would do synchronization only if a user program uses a file. We would have to keep track of how files are opened. No real advantages, would cause problems with files being opened without syscalls.
+
+Files:
+- Again, we would synchronize only if we are not operating on the inodes directly. Some functions may directly invoke inode functions, which would not be synchronized. In addition, we have no good way to keep track of the semaphores, since there may be more than one file per inode.
 
 Inodes:
-- A list of all the open inodes is already maintained.
+- We get synchronization for every time the disk is altered, which is what we want. We keep track of all instances of inodes being open inside the same inode object, which means that we can store our semaphores for the RW algorithm with them. We can free the semaphores once the last opener of an inode stops execution.
