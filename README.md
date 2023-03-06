@@ -43,7 +43,7 @@ One process is trying to remove a file and one process is trying to create a fil
 # Question 4:
 What is the difference between the inode and the file object?
 
-TODO
+The inode is the metadata of the file on disk containing its disksector and size. A file is the in memory representation of the data on disk and always contains the inode associated with it. There may be more than one file per inode.
 
 # Question 5:
 Consider the following set of actions, which are provided in the following
