@@ -177,6 +177,7 @@ inode_reopen(struct inode *inode)
     ASSERT(inode->open_cnt != 0);
     inode->open_cnt++;
   }
+
   return inode;
 }
 
@@ -317,7 +318,7 @@ off_t inode_write_at(struct inode *inode, const void *buffer_, off_t size,
   uint8_t *bounce = NULL;
 
   sema_down(inode->sema_queue);
-  sema_up(inode->sema_resource);
+  sema_down(inode->sema_resource);
   sema_up(inode->sema_queue);
 
   if (inode->deny_write_cnt) {
