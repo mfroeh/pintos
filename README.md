@@ -8,3 +8,4 @@ We will include the exit code, which is the exit code of the last child that exi
 
 # Question 3: Which synchronization mechanisms can be applied?
 
+We used a semaphore in process_execute that makes sure that the parent is blocked until the child has executed, that is, at the very least has loaded itself into memory and setup it's stack inside of process_start. We up the semaphore after process start to allow the parent to execute again.
