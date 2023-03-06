@@ -83,6 +83,8 @@ bool inode_create(disk_sector_t sector, off_t length)
 
   ASSERT(length >= 0);
 
+  lock_acquire(lock_inode);
+
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT(sizeof *disk_inode == DISK_SECTOR_SIZE);
@@ -108,6 +110,8 @@ bool inode_create(disk_sector_t sector, off_t length)
     }
     free(disk_inode);
   }
+
+  lock_release(lock_inode);
 
   return success;
 }
