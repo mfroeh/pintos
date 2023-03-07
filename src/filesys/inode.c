@@ -83,6 +83,8 @@ bool inode_create(disk_sector_t sector, off_t length)
 
   ASSERT(length >= 0);
 
+  lock_acquire(lock_inode);
+
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT(sizeof *disk_inode == DISK_SECTOR_SIZE);
@@ -108,6 +110,8 @@ bool inode_create(disk_sector_t sector, off_t length)
     }
     free(disk_inode);
   }
+
+  lock_release(lock_inode);
 
   return success;
 }
@@ -173,6 +177,7 @@ inode_reopen(struct inode *inode)
     ASSERT(inode->open_cnt != 0);
     inode->open_cnt++;
   }
+
   return inode;
 }
 
@@ -313,7 +318,7 @@ off_t inode_write_at(struct inode *inode, const void *buffer_, off_t size,
   uint8_t *bounce = NULL;
 
   sema_down(inode->sema_queue);
-  sema_up(inode->sema_resource);
+  sema_down(inode->sema_resource);
   sema_up(inode->sema_queue);
 
   if (inode->deny_write_cnt) {
